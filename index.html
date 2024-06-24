@@ -243,11 +243,11 @@
                 else if(cell.is_exit)
                     ctx.fillStyle = "red"
                 else if(cell.has_past_by)
-                    ctx.fillStyle = "#FFFFFF55"
+                    ctx.fillStyle = "#d3d3d37a"
                 else
                     ctx.fillStyle = "transparent"
 
-                ctx.fillRect(x_pos, y_pos, cell_size, cell_size);
+                ctx.fillRect(x_pos + cell_edge_tickness, y_pos + cell_edge_tickness, cell_size - (cell_edge_tickness * 2), cell_size - (cell_edge_tickness * 2));
 
             }
         }
