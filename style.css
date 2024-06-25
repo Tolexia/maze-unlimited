@@ -1,0 +1,36 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+html, body, canvas 
+{
+    height: 100lvh;
+    width: 100lvw;
+    overflow: hidden;
+}
+#restart{
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    left: 70%;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+}
+#restart:focus-visible{
+    border: none;
+}
+#restart path {
+    stroke: rgba(128, 128, 128, 0.622);
+}
+#restart:hover path {
+    stroke: rgb(71, 70, 70);
+}
+@media screen and (orientation:portrait) {
+    #restart{
+        top: 15%;
+        transform: translateX(-50%);
+        left: 50%;
+    }
+}
