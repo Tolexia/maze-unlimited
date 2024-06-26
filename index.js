@@ -54,15 +54,23 @@ let current_x = localStorage.getItem("current_x") ? parseInt(localStorage.getIte
 let current_y = localStorage.getItem("current_y") ? parseInt(localStorage.getItem("current_y")) : 0
 let current = cells.find(val => val.is_current === true)
 
-function drawEdge()
-{
-    ctx.fillStyle = "black"
-    ctx.fillRect(edge_dist + (margin_x / 2), edge_dist + (margin_y / 2), edge_largeness - (edge_dist* 2), edge_largeness-(edge_dist* 2));
-    
-    ctx.fillStyle = "white"
-   
-    ctx.fillRect(edge_min + (margin_x / 2), edge_min + (margin_y / 2), edge_largeness - (edge_min*2), edge_largeness-(edge_min*2));
-}
+const forbidden_edges = [
+    {
+        x : 0,
+        y : 0,
+        edges : ["right", "bottom"]
+    },
+    {
+        x : 1,
+        y : 0,
+        edges : ["left"]
+    },
+    {
+        x : 0,
+        y : 1,
+        edges : ["top"]
+    }
+]
 
 function genMaze()
 {
@@ -114,9 +122,6 @@ function genMaze()
                     case 1:
                         add_edge_threshold = 0.25
                         break;
-                    case 2:
-                        add_edge_threshold = 0.025
-                        break;
                     default:
                         break;
                 }
@@ -131,8 +136,10 @@ function genMaze()
                         }
                     }
                 }
+
+                let prevent_add = (forbidden_edges.find(forbidden => forbidden.x == x && forbidden.y == y && forbidden.edges.includes(current_edge)))
                     
-                if(random < add_edge_threshold)
+                if(random < add_edge_threshold && !prevent_add)
                     edges.push(current_edge)
             }
 
@@ -150,6 +157,8 @@ function genMaze()
                 is_exit = has_exit = true
             }
 
+            
+
             // Determine if current cell
             const is_current = (x == 0 && y == 0)
 
@@ -165,6 +174,16 @@ function genMaze()
     }
 
     localStorage.setItem("cells", JSON.stringify(cells))
+}
+
+function drawEdge()
+{
+    ctx.fillStyle = "black"
+    ctx.fillRect(edge_dist + (margin_x / 2), edge_dist + (margin_y / 2), edge_largeness - (edge_dist* 2), edge_largeness-(edge_dist* 2));
+    
+    ctx.fillStyle = "white"
+   
+    ctx.fillRect(edge_min + (margin_x / 2), edge_min + (margin_y / 2), edge_largeness - (edge_min*2), edge_largeness-(edge_min*2));
 }
 
 function drawMaze()
