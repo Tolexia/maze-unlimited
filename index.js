@@ -72,108 +72,127 @@ const forbidden_edges = [
     }
 ]
 
-function genMaze()
-{
-    console.log("genMaze")
-    let has_exit = false
-
-    for(let x = 0; x < cell_count ; x++)
-    {
-        for(let y = 0; y < cell_count ; y++)
-        {
-           
-            // Determine Edges
-
-            const edges = []
-
-            if(x == 0)
-                edges.push("left")
-            
-            
-            if(y == 0)
-                edges.push("top")
-            
-            if(x == (cell_count - 1))
-                edges.push("right")
-            
-            if(y == (cell_count - 1))
-                edges.push("bottom")
-            
-            const prev_x = cells[x-1]
-            const prev_y = cells[y-1]
-
-
-            for(let edge_pos = 0; edge_pos < cell_edges.length ; edge_pos++)
-            {
-                const current_edge = cell_edges[edge_pos]
-
-                if(edges.includes(current_edge))
-                    continue;
-
-                
-                const random = Math.random()
-
-                let add_edge_threshold = 0
-                switch(edges.length)
-                {
-                    case 0:
-                        add_edge_threshold = 0.5
-                        break;
-                    case 1:
-                        add_edge_threshold = 0.25
-                        break;
-                    default:
-                        break;
-                }
-
-                if(prev_x)
-                {
-                    if(current_edge == "left" || current_edge == "right")
-                    {
-                        if(prev_x.edges.includes("left") || prev_x.edges.includes("right"))
-                        {
-                            add_edge_threshold /= 3
-                        }
-                    }
-                }
-
-                let prevent_add = (forbidden_edges.find(forbidden => forbidden.x == x && forbidden.y == y && forbidden.edges.includes(current_edge)))
-                    
-                if(random < add_edge_threshold && !prevent_add)
-                    edges.push(current_edge)
+function placeExit() {
+    let exitPlaced = false;
+    while (!exitPlaced) {
+        const x = Math.floor(Math.random() * cell_count);
+        const y = Math.floor(Math.random() * cell_count);
+        const cell = cells.find(c => c.x === x && c.y === y);
+        
+        if (!cell.is_current) {
+            cell.is_exit = true;
+            exitPlaced = isExitReachable();
+            if (!exitPlaced) {
+                cell.is_exit = false;
             }
+        }
+    }
+}
 
-            // Determine Exit
-            let is_exit = false
-            if(
-                !has_exit && 
-                x  >= (cell_count / 2) - 2 && 
-                x  <= (cell_count / 2) + 2 && 
-                y  >= (cell_count / 2) - 2 && 
-                y  <= (cell_count / 2) + 2 &&
-                Math.random() >= 0.4
-            )
-            {
-                is_exit = has_exit = true
-            }
+function isExitReachable() {
+    const visited = new Set();
+    const stack = [cells.find(c => c.is_current)];
 
-            
+    while (stack.length > 0) {
+        const current = stack.pop();
+        if (current.is_exit) return true;
 
-            // Determine if current cell
-            const is_current = (x == 0 && y == 0)
-
-            cells.push({
-                x,
-                y,
-                edges,
-                is_exit,
-                is_current,
-                has_past_by: false
-            })
+        const key = `${current.x},${current.y}`;
+        if (!visited.has(key)) {
+            visited.add(key);
+            const neighbors = getAccessibleNeighbors(current);
+            stack.push(...neighbors);
         }
     }
 
-    localStorage.setItem("cells", JSON.stringify(cells))
+    return false;
+}
+
+function getAccessibleNeighbors(cell) {
+    const neighbors = [];
+    const directions = ["top", "right", "bottom", "left"];
+
+    for (let direction of directions) {
+        if (!cell.edges.includes(direction)) {
+            let nextX = cell.x, nextY = cell.y;
+            switch (direction) {
+                case "top": nextY--; break;
+                case "right": nextX++; break;
+                case "bottom": nextY++; break;
+                case "left": nextX--; break;
+            }
+            const neighbor = cells.find(c => c.x === nextX && c.y === nextY);
+            if (neighbor) neighbors.push(neighbor);
+        }
+    }
+
+    return neighbors;
+}
+
+function genMaze() {
+    for (let x = 0; x < cell_count; x++) {
+        for (let y = 0; y < cell_count; y++) {
+            cells.push({
+                x, y,
+                edges: ["top", "right", "bottom", "left"],
+                visited: false,
+                is_exit: false,
+                is_current: (x === 0 && y === 0),
+                has_past_by: false
+            });
+        }
+    }
+
+    recursiveBacktrack(0, 0);
+
+    placeExit();
+
+    localStorage.setItem("cells", JSON.stringify(cells));
+}
+
+function recursiveBacktrack(x, y) {
+    const current = cells.find(cell => cell.x === x && cell.y === y);
+    current.visited = true;
+
+    const directions = shuffle(["top", "right", "bottom", "left"]);
+
+    for (let direction of directions) {
+        let nextX = x, nextY = y;
+        switch (direction) {
+            case "top": nextY--; break;
+            case "right": nextX++; break;
+            case "bottom": nextY++; break;
+            case "left": nextX--; break;
+        }
+
+        if (nextX >= 0 && nextX < cell_count && nextY >= 0 && nextY < cell_count) {
+            const next = cells.find(cell => cell.x === nextX && cell.y === nextY);
+            if (!next.visited) {
+                current.edges = current.edges.filter(edge => edge !== direction);
+                next.edges = next.edges.filter(edge => edge !== getOppositeDirection(direction));
+                recursiveBacktrack(nextX, nextY);
+            }
+        }
+    }
+}
+
+function getOppositeDirection(direction) {
+    switch (direction) {
+        case "top": return "bottom";
+        case "bottom": return "top";
+        case "left": return "right";
+        case "right": return "left";
+        case "up": return "down";
+        case "down": return "up";
+    }
+}
+
+function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
 }
 
 function drawEdge()
@@ -190,7 +209,7 @@ function drawMaze()
 {
     const initial_x = edge_min + (margin_x / 2)
     const initial_y = edge_min + (margin_y / 2)
-    ctx.clearRect(initial_x,initial_y,total_inside_largeness,total_inside_largeness)
+    ctx.clearRect(initial_x, initial_y, total_inside_largeness, total_inside_largeness)
 
     for(let x = 0; x < cell_count ; x++)
     {
@@ -253,9 +272,7 @@ function drawMaze()
             }
 
             // Draw inner cell
-            if(cell.is_current)
-                ctx.fillStyle = "black"
-            else if(cell.is_exit)
+             if(cell.is_exit)
                 ctx.fillStyle = "red"
             else if(cell.has_past_by)
                 ctx.fillStyle = "#d1cfcf24"
@@ -280,37 +297,93 @@ function init()
 
     current = cells.find(val => val.is_current === true)
     drawMaze()
+    drawPlayer(current_x, current_y);
 }
 
-function up()
-{
-    const dest = cells.find(val => val.y == current_y-1 && val.x == current_x)
-    if(current_y > 0 && !current.edges.includes("top") && !dest.edges.includes("bottom")) current_y -= 1
-    localStorage.setItem("current_y", current_y)
-    updateCurrent()
+
+function move(direction) {
+    if (animating) return;
+
+    let newX = current_x;
+    let newY = current_y;
+
+    switch (direction) {
+        case 'up': newY--; break;
+        case 'down': newY++; break;
+        case 'left': newX--; break;
+        case 'right': newX++; break;
+    }
+
+    const current = cells.find(val => val.x == current_x && val.y == current_y);
+    const dest = cells.find(val => val.x == newX && val.y == newY);
+
+    if (dest && canMove(current, dest, direction)) {
+        startX = current_x;
+        startY = current_y;
+        targetX = newX;
+        targetY = newY;
+        animating = true;
+        animationStartTime = performance.now();
+        requestAnimationFrame(animateMove);
+    }
 }
-function left()
-{
-    const dest = cells.find(val => val.y == current_y && val.x == current_x-1)
-    if(current_x > 0 && !current.edges.includes("left") && !dest.edges.includes("right")) current_x -= 1
-    localStorage.setItem("current_x", current_x)
-    updateCurrent()
+
+function canMove(from, to, direction) {
+    switch (direction) {
+        case 'up': return !from.edges.includes('top') && !to.edges.includes('bottom');
+        case 'down': return !from.edges.includes('bottom') && !to.edges.includes('top');
+        case 'left': return !from.edges.includes('left') && !to.edges.includes('right');
+        case 'right': return !from.edges.includes('right') && !to.edges.includes('left');
+    }
 }
-function down()
-{
-    const dest = cells.find(val => val.y == current_y+1 && val.x == current_x)
-    if(current_y < cell_count - 1 && !current.edges.includes("bottom") && !dest.edges.includes("top")) current_y += 1
-    localStorage.setItem("current_y", current_y)
-    updateCurrent()
+
+function drawPlayer(x, y) {
+    const initial_x = edge_min + (margin_x / 2);
+    const initial_y = edge_min + (margin_y / 2);
+    
+    const playerX = initial_x + (x * cell_size) + (total_padding / 2) + cell_edge_tickness;
+    const playerY = initial_y + (y * cell_size) + (total_padding / 2) + cell_edge_tickness;
+    const playerSize = cell_size - (cell_edge_tickness * 2);
+
+    ctx.fillStyle = "black";
+    ctx.fillRect(playerX, playerY, playerSize, playerSize);
 }
-function right()
-{
-    const dest = cells.find(val => val.y == current_y && val.x == current_x+1)
-    if(current_x < cell_count - 1 && !current.edges.includes("right") && !dest.edges.includes("left")) current_x += 1
-    localStorage.setItem("current_x", current_x)
-    updateCurrent()
+
+function animateMove(timestamp) {
+    if (!animationStartTime) animationStartTime = timestamp;
+    const elapsed = timestamp - animationStartTime;
+    const progress = Math.min(elapsed / animationDuration, 1);
+
+    const currentX = startX + (targetX - startX) * progress;
+    const currentY = startY + (targetY - startY) * progress;
+
+    drawMaze();
+    drawPlayer(currentX, currentY);
+
+    if (progress < 1) {
+        requestAnimationFrame(animateMove);
+    } else {
+        animating = false;
+        current_x = targetX;
+        current_y = targetY;
+        localStorage.setItem("current_x", current_x);
+        localStorage.setItem("current_y", current_y);
+        updateCurrent();
+    }
 }
-let animating = false
+
+
+function up() { move('up'); }
+function down() { move('down'); }
+function left() { move('left'); }
+function right() { move('right'); }
+
+
+let animating = false;
+let animationStartTime;
+let animationDuration = 200; // durée de l'animation en millisecondes
+let startX, startY, targetX, targetY;
+
 document.body.addEventListener('keydown', e => {
 
     if(e.key == "ArrowUp") {
@@ -327,21 +400,21 @@ document.body.addEventListener('keydown', e => {
     }
 })
 
-function updateCurrent()
-{
-    current.is_current = false
-    current.has_past_by = true
+function updateCurrent() {
+    current.is_current = false;
+    current.has_past_by = true;
 
-    const new_current = cells.find(val => val.x == current_x && val.y == current_y)
-    if(new_current)
-    {
-        if(new_current.is_exit)  return has_won()
+    const new_current = cells.find(val => val.x == current_x && val.y == current_y);
+    if (new_current) {
+        if (new_current.is_exit) return has_won();
 
-        new_current.is_current = true
-        current = new_current
-    } 
-    localStorage.setItem("cells", JSON.stringify(cells))
-    drawMaze()
+        new_current.is_current = true;
+        current = new_current;
+    }
+
+    localStorage.setItem("cells", JSON.stringify(cells));
+    drawMaze();
+    drawPlayer(current_x, current_y);
 }
 
 function reset()
